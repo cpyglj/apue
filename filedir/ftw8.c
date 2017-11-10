@@ -1,7 +1,7 @@
 #include "apue.h"
 #include <dirent.h>
 #include <limits.h>
-
+#include "myerr.h"
 /* function type that is called for each filename */
 typedef	int	Myfunc(const char *, const struct stat *, int);
 
@@ -56,6 +56,8 @@ static size_t pathlen;
 static int					/* we return whatever func() returns */
 myftw(char *pathname, Myfunc *func)
 {
+	//返回fullpath指向为path_name的字符串 申请的首地址的  指针
+	//pathlen=maxsize+1
 	fullpath = path_alloc(&pathlen);	/* malloc PATH_MAX+1 bytes */
 										/* ({Prog pathalloc}) */
 	if (pathlen <= strlen(pathname)) {
@@ -87,21 +89,28 @@ dopath(Myfunc* func)
 		return(func(fullpath, &statbuf, FTW_F));
 
 	/*
-	 * It's a directory.  First call func() for the directory,
+	 * It's a directory.  First call func() for the direccd tory,
 	 * then process each filename in the directory.
 	 */
 	if ((ret = func(fullpath, &statbuf, FTW_D)) != 0)
 		return(ret);
 
 	n = strlen(fullpath);
+	///[h][o]me/file  +2 [/] [\0=0] 
+	// char[]
 	if (n + NAME_MAX + 2 > pathlen) {	/* expand path buffer */
+	err_ret("pathlen == %d \n", pathlen);
 		pathlen *= 2;
 		if ((fullpath = realloc(fullpath, pathlen)) == NULL)
 			err_sys("realloc failed");
 	}
+
+	//加/为了后续递归文件夹中的文件 当参数为 . 时候 会递归  ./xxx.c 给自己
 	fullpath[n++] = '/';
 	fullpath[n] = 0;
-
+	err_ret("fullpath == %s \n", fullpath);
+	err_ret("pathlen == %d \n", pathlen);
+	err_ret("n == %d \n", n);
 	if ((dp = opendir(fullpath)) == NULL)	/* can't read directory */
 		return(func(fullpath, &statbuf, FTW_DNR));
 
@@ -110,11 +119,14 @@ dopath(Myfunc* func)
 		    strcmp(dirp->d_name, "..") == 0)
 				continue;		/* ignore dot and dot-dot */
 		strcpy(&fullpath[n], dirp->d_name);	/* append name after "/" */
+
+		//当前fullpath 为 ./xxx.c 文件夹中的文件
 		if ((ret = dopath(func)) != 0)		/* recursive */
 			break;	/* time to leave */
 	}
-	fullpath[n-1] = 0;	/* erase everything from slash onward */
 
+	fullpath[n-1] = 0;	/* erase everything from slash onward */
+err_ret("fullpath == %s \n", fullpath);
 	if (closedir(dp) < 0)
 		err_ret("can't close directory %s", fullpath);
 	return(ret);
@@ -126,14 +138,14 @@ myfunc(const char *pathname, const struct stat *statptr, int type)
 	switch (type) {
 	case FTW_F:
 		switch (statptr->st_mode & S_IFMT) {
-		case S_IFREG:	nreg++;		break;
-		case S_IFBLK:	nblk++;		break;
-		case S_IFCHR:	nchr++;		break;
-		case S_IFIFO:	nfifo++;	break;
-		case S_IFLNK:	nslink++;	break;
-		case S_IFSOCK:	nsock++;	break;
-		case S_IFDIR:	/* directories should have type = FTW_D */
-			err_dump("for S_IFDIR for %s", pathname);
+			case S_IFREG:	nreg++;		break;
+			case S_IFBLK:	nblk++;		break;
+			case S_IFCHR:	nchr++;		break;
+			case S_IFIFO:	nfifo++;	break;
+			case S_IFLNK:	nslink++;	break;
+			case S_IFSOCK:	nsock++;	break;
+			case S_IFDIR:	/* directories should have type = FTW_D */
+				err_dump("for S_IFDIR for %s", pathname);
 		}
 		break;
 	case FTW_D:

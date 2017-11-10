@@ -1,5 +1,6 @@
 #include "apue.h"
 #include <fcntl.h>
+#include "myerr.h"
 
 void
 set_fl(int fd, int flags) /* flags are file status flags to turn on */
